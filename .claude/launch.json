@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "alphaflow",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev", "--", "--port", "$PORT"],
+      "port": 3001,
+      "autoPort": true
+    }
+  ]
+}
