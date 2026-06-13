@@ -1,29 +1,45 @@
 'use client'
 
-import { useState } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  ArrowLeft, Mail, Phone, AtSign, Globe, Edit2, Plus, Copy, CheckCheck,
-  Clock, MessageSquare, FileText, Calendar, User, ChevronDown
+  ArrowLeft, Mail, Phone, AtSign, Globe, Plus, Copy, CheckCheck,
+  Clock, FileText, Calendar, User, Trash2
 } from 'lucide-react'
 import StatusBadge from '@/components/ui/StatusBadge'
 import ProjectBadge from '@/components/ui/ProjectBadge'
 import TemperatureBadge from '@/components/ui/TemperatureBadge'
 import PriorityBadge from '@/components/ui/PriorityBadge'
 import CreateTaskModal from '@/components/modals/CreateTaskModal'
-import { mockLeads, mockTasks, mockEmailTemplates, mockHistory, mockProposals } from '@/lib/mock-data'
+import { getLeads, deleteLead, getTasks, deleteTask, onLeadsChange, onTasksChange, getHistory, getProposals } from '@/lib/store'
+import { mockEmailTemplates } from '@/lib/mock-data'
 import { formatDate, formatCurrency, getInitials, replaceTemplateVars } from '@/lib/utils'
 import { cn } from '@/lib/utils'
+import { Lead, Task } from '@/types'
 
 type Tab = 'overview' | 'history' | 'emails' | 'proposals'
 
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>()
-  const lead = mockLeads.find(l => l.id === id)
+  const router = useRouter()
+  const [leads, setLeads] = useState<Lead[]>(() => getLeads())
+  const [tasks, setTasks] = useState<Task[]>(() => getTasks())
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [confirmDeleteLead, setConfirmDeleteLead] = useState(false)
+  const [confirmDeleteTask, setConfirmDeleteTask] = useState<string | null>(null)
+
+  useEffect(() => {
+    const unsub1 = onLeadsChange(() => setLeads(getLeads()))
+    const unsub2 = onTasksChange(() => setTasks(getTasks()))
+    return () => { unsub1(); unsub2() }
+  }, [])
+
+  const lead = leads.find(l => l.id === id)
+  const history = getHistory().filter(h => h.lead_id === id)
+  const proposals = getProposals().filter(p => p.lead_id === id)
 
   if (!lead) {
     return (
@@ -34,13 +50,8 @@ export default function LeadDetailPage() {
     )
   }
 
-  const leadTasks = mockTasks.filter(t => t.lead_id === id)
-  const leadHistory = mockHistory.filter(h => h.lead_id === id)
-  const leadProposals = mockProposals.filter(p => p.lead_id === id)
-
-  // Suggested emails: match by project, with fallback to all
+  const leadTasks = tasks.filter(t => t.lead_id === id)
   const suggestedEmails = mockEmailTemplates.filter(t => t.alpha_project === lead.alpha_project)
-
   const templateVars: Record<string, string> = {
     Nombre: lead.first_name,
     Marca: lead.company ?? lead.first_name,
@@ -55,11 +66,31 @@ export default function LeadDetailPage() {
     setTimeout(() => setCopiedId(null), 2000)
   }
 
+  function handleDeleteLead() {
+    if (confirmDeleteLead) {
+      deleteLead(id)
+      router.push('/leads')
+    } else {
+      setConfirmDeleteLead(true)
+      setTimeout(() => setConfirmDeleteLead(false), 3000)
+    }
+  }
+
+  function handleDeleteTask(taskId: string) {
+    if (confirmDeleteTask === taskId) {
+      deleteTask(taskId)
+      setConfirmDeleteTask(null)
+    } else {
+      setConfirmDeleteTask(taskId)
+      setTimeout(() => setConfirmDeleteTask(null), 3000)
+    }
+  }
+
   const tabs: { key: Tab; label: string }[] = [
     { key: 'overview', label: 'Resumen' },
-    { key: 'history', label: `Historial${leadHistory.length ? ` (${leadHistory.length})` : ''}` },
-    { key: 'emails', label: `Mails sugeridos${suggestedEmails.length ? ` (${suggestedEmails.length})` : ''}` },
-    { key: 'proposals', label: `Propuestas${leadProposals.length ? ` (${leadProposals.length})` : ''}` },
+    { key: 'history', label: `Historial${history.length ? ` (${history.length})` : ''}` },
+    { key: 'emails', label: `Mails sugeridos (${suggestedEmails.length})` },
+    { key: 'proposals', label: `Propuestas${proposals.length ? ` (${proposals.length})` : ''}` },
   ]
 
   return (
@@ -74,7 +105,6 @@ export default function LeadDetailPage() {
         <div className="bg-[#111111] border border-[#242424] rounded-xl p-6">
           <div className="flex items-start justify-between gap-6">
             <div className="flex items-start gap-4">
-              {/* Avatar */}
               <div className="w-14 h-14 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center text-lg font-semibold text-[#a1a1aa] shrink-0">
                 {getInitials(lead.first_name, lead.last_name)}
               </div>
@@ -103,10 +133,23 @@ export default function LeadDetailPage() {
                 <Plus className="w-3.5 h-3.5" /> Crear tarea
               </button>
               <button
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-white bg-[#3B82F6] hover:bg-[#2563EB] transition-all font-medium"
                 onClick={() => setActiveTab('emails')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-white bg-[#3B82F6] hover:bg-[#2563EB] transition-all font-medium"
               >
                 <Mail className="w-3.5 h-3.5" /> Mail sugerido
+              </button>
+              <button
+                onClick={handleDeleteLead}
+                title={confirmDeleteLead ? 'Hacé click de nuevo para confirmar' : 'Eliminar lead'}
+                className={cn(
+                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm border transition-all',
+                  confirmDeleteLead
+                    ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                    : 'text-[#71717a] border-[#242424] hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5'
+                )}
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                {confirmDeleteLead ? 'Confirmar' : 'Eliminar'}
               </button>
             </div>
           </div>
@@ -128,9 +171,7 @@ export default function LeadDetailPage() {
               onClick={() => setActiveTab(tab.key)}
               className={cn(
                 'flex-1 py-2 px-3 rounded-lg text-sm transition-all',
-                activeTab === tab.key
-                  ? 'bg-[#1a1a1a] text-white font-medium'
-                  : 'text-[#71717a] hover:text-white'
+                activeTab === tab.key ? 'bg-[#1a1a1a] text-white font-medium' : 'text-[#71717a] hover:text-white'
               )}
             >
               {tab.label}
@@ -138,10 +179,9 @@ export default function LeadDetailPage() {
           ))}
         </div>
 
-        {/* Tab content */}
+        {/* Tab: Resumen */}
         {activeTab === 'overview' && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            {/* Left: datos + diagnóstico */}
             <div className="lg:col-span-2 space-y-5">
               {/* Datos de contacto */}
               <Section title="Datos de contacto">
@@ -150,17 +190,18 @@ export default function LeadDetailPage() {
                   {lead.phone && <ContactItem icon={Phone} value={lead.phone} />}
                   {lead.instagram && <ContactItem icon={AtSign} value={lead.instagram} />}
                   {lead.website && <ContactItem icon={Globe} value={lead.website} />}
+                  {!lead.email && !lead.phone && !lead.instagram && !lead.website && (
+                    <p className="text-xs text-[#71717a] col-span-2">Sin datos de contacto cargados.</p>
+                  )}
                 </div>
               </Section>
 
-              {/* Próximo paso */}
               {lead.next_step && (
                 <Section title="Próximo paso">
                   <p className="text-sm text-white bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-4">{lead.next_step}</p>
                 </Section>
               )}
 
-              {/* Notas rápidas */}
               {lead.quick_notes && (
                 <Section title="Notas internas">
                   <p className="text-sm text-[#a1a1aa] leading-relaxed">{lead.quick_notes}</p>
@@ -168,13 +209,16 @@ export default function LeadDetailPage() {
               )}
 
               {/* Tareas */}
-              <Section title={`Tareas (${leadTasks.length})`} action={<button onClick={() => setShowTaskModal(true)} className="text-xs text-[#3B82F6] hover:underline">+ Nueva</button>}>
+              <Section
+                title={`Tareas (${leadTasks.length})`}
+                action={<button onClick={() => setShowTaskModal(true)} className="text-xs text-[#3B82F6] hover:underline">+ Nueva</button>}
+              >
                 {leadTasks.length === 0 ? (
                   <p className="text-xs text-[#71717a] py-4 text-center">No hay tareas para este lead.</p>
                 ) : (
                   <div className="space-y-2">
                     {leadTasks.map(task => (
-                      <div key={task.id} className="flex items-center gap-3 bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-3">
+                      <div key={task.id} className="flex items-center gap-3 bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-3 group">
                         <div className="flex-1 min-w-0">
                           <p className="text-sm text-white">{task.title}</p>
                           {task.due_date && <p className="text-xs text-[#71717a] mt-0.5">Vence: {formatDate(task.due_date, { day: '2-digit', month: 'short' })}</p>}
@@ -186,6 +230,18 @@ export default function LeadDetailPage() {
                             task.status === 'Vencido' ? 'bg-red-500/10 text-red-400' :
                             'bg-zinc-500/10 text-zinc-400'
                           )}>{task.status}</span>
+                          <button
+                            onClick={() => handleDeleteTask(task.id)}
+                            className={cn(
+                              'w-6 h-6 rounded flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all',
+                              confirmDeleteTask === task.id
+                                ? 'bg-red-500/20 text-red-400 opacity-100'
+                                : 'text-[#3f3f46] hover:text-red-400 hover:bg-red-500/10'
+                            )}
+                            title={confirmDeleteTask === task.id ? 'Confirmar eliminación' : 'Eliminar tarea'}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -196,7 +252,6 @@ export default function LeadDetailPage() {
 
             {/* Right sidebar */}
             <div className="space-y-5">
-              {/* Estado comercial */}
               <Section title="Estado comercial">
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
@@ -226,7 +281,6 @@ export default function LeadDetailPage() {
                 </div>
               </Section>
 
-              {/* Quick email */}
               {suggestedEmails[0] && (
                 <Section title="Mail rápido recomendado">
                   <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-3">
@@ -245,15 +299,16 @@ export default function LeadDetailPage() {
           </div>
         )}
 
+        {/* Tab: Historial */}
         {activeTab === 'history' && (
           <Section title="Historial de contacto">
-            {leadHistory.length === 0 ? (
+            {history.length === 0 ? (
               <p className="text-sm text-[#71717a] text-center py-8">Este lead todavía no tiene historial.</p>
             ) : (
               <div className="relative pl-5">
                 <div className="absolute left-2 top-0 bottom-0 w-px bg-[#1a1a1a]" />
                 <div className="space-y-6">
-                  {leadHistory.map(h => (
+                  {history.map(h => (
                     <div key={h.id} className="relative">
                       <div className="absolute -left-3 top-1 w-2 h-2 rounded-full bg-[#2a2a2a] border border-[#3f3f46]" />
                       <div className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-lg p-4">
@@ -273,13 +328,12 @@ export default function LeadDetailPage() {
           </Section>
         )}
 
+        {/* Tab: Mails */}
         {activeTab === 'emails' && (
           <div className="space-y-4">
-            <p className="text-sm text-[#71717a]">Mails sugeridos para <span className="text-white">{lead.alpha_project}</span> · {lead.commercial_status}</p>
+            <p className="text-sm text-[#71717a]">Mails sugeridos para <span className="text-white">{lead.alpha_project}</span></p>
             {suggestedEmails.length === 0 ? (
-              <Section title="">
-                <p className="text-sm text-[#71717a] text-center py-8">No hay mails configurados para este proyecto.</p>
-              </Section>
+              <Section title=""><p className="text-sm text-[#71717a] text-center py-8">No hay mails configurados para este proyecto.</p></Section>
             ) : (
               suggestedEmails.map(template => (
                 <div key={template.id} className="bg-[#111111] border border-[#242424] rounded-xl overflow-hidden">
@@ -292,10 +346,7 @@ export default function LeadDetailPage() {
                       onClick={() => copyEmail(template)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm bg-[#3B82F6]/10 text-[#3B82F6] border border-[#3B82F6]/20 hover:bg-[#3B82F6]/15 transition-all whitespace-nowrap"
                     >
-                      {copiedId === template.id
-                        ? <><CheckCheck className="w-3.5 h-3.5" /> Copiado</>
-                        : <><Copy className="w-3.5 h-3.5" /> Copiar mail</>
-                      }
+                      {copiedId === template.id ? <><CheckCheck className="w-3.5 h-3.5" /> Copiado</> : <><Copy className="w-3.5 h-3.5" /> Copiar mail</>}
                     </button>
                   </div>
                   <div className="p-5">
@@ -314,13 +365,14 @@ export default function LeadDetailPage() {
           </div>
         )}
 
+        {/* Tab: Propuestas */}
         {activeTab === 'proposals' && (
           <Section title="Propuestas">
-            {leadProposals.length === 0 ? (
+            {proposals.length === 0 ? (
               <p className="text-sm text-[#71717a] text-center py-8">No hay propuestas para este lead.</p>
             ) : (
               <div className="space-y-3">
-                {leadProposals.map(p => (
+                {proposals.map(p => (
                   <div key={p.id} className="bg-[#0d0d0d] border border-[#1a1a1a] rounded-xl p-4 flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium text-white">{p.title}</p>
@@ -328,12 +380,7 @@ export default function LeadDetailPage() {
                     </div>
                     <div className="flex flex-col items-end gap-1.5 shrink-0">
                       <span className="text-sm font-semibold text-white">{formatCurrency(p.amount, p.currency)}</span>
-                      <span className={cn('text-xs px-2 py-0.5 rounded-full',
-                        p.status === 'Aprobada' ? 'bg-emerald-500/10 text-emerald-400' :
-                        p.status === 'Rechazada' ? 'bg-red-500/10 text-red-400' :
-                        'bg-blue-500/10 text-blue-400'
-                      )}>{p.status}</span>
-                      {p.sent_date && <span className="text-xs text-[#71717a]">{formatDate(p.sent_date, { day: '2-digit', month: 'short' })}</span>}
+                      <span className="text-xs text-[#71717a]">{p.status}</span>
                     </div>
                   </div>
                 ))}
@@ -343,12 +390,14 @@ export default function LeadDetailPage() {
         )}
       </div>
 
-      <CreateTaskModal
-        open={showTaskModal}
-        onClose={() => setShowTaskModal(false)}
-        leadId={lead.id}
-        leadName={`${lead.first_name} ${lead.last_name}`}
-      />
+      <CreateTaskModal open={showTaskModal} onClose={() => setShowTaskModal(false)} leadId={lead.id} leadName={`${lead.first_name} ${lead.last_name}`} />
+
+      {/* Confirm delete hint */}
+      {confirmDeleteLead && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-[#1a1a1a] border border-red-500/30 rounded-xl px-5 py-3 text-sm text-red-400 shadow-xl z-50">
+          Hacé click en "Confirmar" para eliminar este lead permanentemente
+        </div>
+      )}
     </>
   )
 }
