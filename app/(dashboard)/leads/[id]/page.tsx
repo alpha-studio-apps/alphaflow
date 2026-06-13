@@ -102,75 +102,77 @@ export default function LeadDetailPage() {
         </Link>
 
         {/* Header card */}
-        <div className="bg-[#111111] border border-[#242424] rounded-xl p-6">
-          <div className="flex items-start justify-between gap-6">
-            <div className="flex items-start gap-4">
-              <div className="w-14 h-14 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center text-lg font-semibold text-[#a1a1aa] shrink-0">
-                {getInitials(lead.first_name, lead.last_name)}
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-white">{lead.first_name} {lead.last_name}</h1>
-                {lead.company && <p className="text-sm text-[#71717a] mt-0.5">{lead.company}</p>}
-                <div className="flex flex-wrap items-center gap-2 mt-3">
-                  <ProjectBadge project={lead.alpha_project} />
-                  <StatusBadge status={lead.commercial_status} />
-                  <TemperatureBadge temperature={lead.temperature} />
-                  {lead.estimated_value && (
-                    <span className="text-xs bg-white/[0.05] border border-[#2a2a2a] rounded-full px-2.5 py-1 text-[#a1a1aa]">
-                      {formatCurrency(lead.estimated_value, lead.currency)}
-                    </span>
-                  )}
-                </div>
-              </div>
+        <div className="bg-[#111111] border border-[#242424] rounded-xl p-4 md:p-6">
+          {/* Top row: avatar + info + actions */}
+          <div className="flex items-start gap-3 md:gap-4">
+            <div className="w-11 h-11 md:w-14 md:h-14 rounded-xl bg-[#1a1a1a] border border-[#2a2a2a] flex items-center justify-center text-base md:text-lg font-semibold text-[#a1a1aa] shrink-0">
+              {getInitials(lead.first_name, lead.last_name)}
             </div>
-
-            {/* Actions */}
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <button
-                onClick={() => setShowTaskModal(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-[#a1a1aa] border border-[#242424] bg-transparent hover:bg-white/[0.03] hover:text-white transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" /> Crear tarea
-              </button>
-              <button
-                onClick={() => setActiveTab('emails')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-white bg-[#3B82F6] hover:bg-[#2563EB] transition-all font-medium"
-              >
-                <Mail className="w-3.5 h-3.5" /> Mail sugerido
-              </button>
-              <button
-                onClick={handleDeleteLead}
-                title={confirmDeleteLead ? 'Hacé click de nuevo para confirmar' : 'Eliminar lead'}
-                className={cn(
-                  'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm border transition-all',
-                  confirmDeleteLead
-                    ? 'bg-red-500/20 text-red-400 border-red-500/30'
-                    : 'text-[#71717a] border-[#242424] hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5'
+            <div className="flex-1 min-w-0">
+              <h1 className="text-lg md:text-xl font-bold text-white leading-tight">{lead.first_name} {lead.last_name}</h1>
+              {lead.company && <p className="text-sm text-[#71717a] mt-0.5">{lead.company}</p>}
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <ProjectBadge project={lead.alpha_project} size="sm" />
+                <StatusBadge status={lead.commercial_status} size="sm" />
+                <TemperatureBadge temperature={lead.temperature} size="sm" />
+                {lead.estimated_value && (
+                  <span className="text-xs bg-white/[0.05] border border-[#2a2a2a] rounded-full px-2 py-0.5 text-[#a1a1aa]">
+                    {formatCurrency(lead.estimated_value, lead.currency)}
+                  </span>
                 )}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                {confirmDeleteLead ? 'Confirmar' : 'Eliminar'}
-              </button>
+              </div>
             </div>
           </div>
 
+          {/* Actions — full width row on mobile */}
+          <div className="flex items-center gap-2 mt-4 flex-wrap">
+            <button
+              onClick={() => setShowTaskModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-[#a1a1aa] border border-[#242424] bg-transparent hover:bg-white/[0.03] hover:text-white transition-all"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Crear tarea</span>
+              <span className="sm:hidden">Tarea</span>
+            </button>
+            <button
+              onClick={() => setActiveTab('emails')}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-white bg-[#3B82F6] hover:bg-[#2563EB] transition-all font-medium"
+            >
+              <Mail className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Mail sugerido</span>
+              <span className="sm:hidden">Mail</span>
+            </button>
+            <button
+              onClick={handleDeleteLead}
+              className={cn(
+                'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm border transition-all ml-auto',
+                confirmDeleteLead
+                  ? 'bg-red-500/20 text-red-400 border-red-500/30'
+                  : 'text-[#71717a] border-[#242424] hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/5'
+              )}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              {confirmDeleteLead ? 'Confirmar' : 'Eliminar'}
+            </button>
+          </div>
+
           {/* Quick info strip */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-6 pt-5 border-t border-[#1a1a1a]">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-[#1a1a1a]">
             <InfoItem icon={Clock} label="Primer contacto" value={formatDate(lead.first_contact_date)} />
             <InfoItem icon={Clock} label="Último contacto" value={formatDate(lead.last_contact_date)} />
-            <InfoItem icon={Calendar} label="Próximo seguimiento" value={formatDate(lead.follow_up_date)} highlight={!!lead.follow_up_date} />
+            <InfoItem icon={Calendar} label="Seguimiento" value={formatDate(lead.follow_up_date)} highlight={!!lead.follow_up_date} />
             <InfoItem icon={User} label="Canal" value={lead.entry_channel} />
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex gap-1 bg-[#0d0d0d] border border-[#242424] rounded-xl p-1">
+        {/* Tabs — horizontal scroll on mobile */}
+        <div className="flex gap-1 bg-[#0d0d0d] border border-[#242424] rounded-xl p-1 overflow-x-auto">
           {tabs.map(tab => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                'flex-1 py-2 px-3 rounded-lg text-sm transition-all',
+                'flex-shrink-0 sm:flex-1 py-2 px-3 rounded-lg text-xs sm:text-sm whitespace-nowrap transition-all',
                 activeTab === tab.key ? 'bg-[#1a1a1a] text-white font-medium' : 'text-[#71717a] hover:text-white'
               )}
             >
