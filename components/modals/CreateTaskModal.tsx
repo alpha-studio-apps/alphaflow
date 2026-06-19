@@ -2,7 +2,9 @@
 
 import { useState } from 'react'
 import { X } from 'lucide-react'
-import { ALPHA_PROJECTS, TASK_TYPES, TASK_STATUSES, PRIORITIES } from '@/lib/constants'
+import { ALPHA_PROJECTS, TASK_TYPES, PRIORITIES } from '@/lib/constants'
+import { addTask } from '@/lib/store'
+import { Task } from '@/types'
 import { cn } from '@/lib/utils'
 
 interface Props {
@@ -27,19 +29,34 @@ export default function CreateTaskModal({ open, onClose, leadId, leadName }: Pro
     setForm(prev => ({ ...prev, [key]: value }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    console.log('New task:', { ...form, lead_id: leadId })
+    await addTask({
+      title: form.title,
+      description: form.description || undefined,
+      alpha_project: form.alpha_project as Task['alpha_project'],
+      task_type: form.task_type as Task['task_type'],
+      status: form.status as Task['status'],
+      priority: form.priority as Task['priority'],
+      due_date: form.due_date || undefined,
+      lead_id: leadId,
+    })
     onClose()
   }
 
   if (!open) return null
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center sm:justify-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative z-10 w-[460px] bg-[#0d0d0d] border border-[#242424] rounded-xl overflow-hidden">
-        <div className="flex items-center justify-between p-5 border-b border-[#1a1a1a]">
+
+      <div className="relative z-10 w-full sm:w-[460px] sm:max-w-[calc(100vw-2rem)] bg-[#0d0d0d] sm:border border-t sm:border-t border-[#242424] rounded-t-2xl sm:rounded-xl overflow-hidden">
+        {/* Handle bar — mobile only */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-[#2a2a2a]" />
+        </div>
+
+        <div className="flex items-center justify-between px-5 py-4 border-b border-[#1a1a1a]">
           <div>
             <h2 className="text-sm font-semibold text-white">Nueva tarea</h2>
             {leadName && <p className="text-xs text-[#71717a] mt-0.5">Para: {leadName}</p>}
@@ -85,13 +102,13 @@ export default function CreateTaskModal({ open, onClose, leadId, leadName }: Pro
               className={cn(inputClass, 'resize-none')} />
           </Field>
 
-          <div className="flex gap-2 pt-1">
+          <div className="flex gap-2 pt-1 pb-safe">
             <button type="button" onClick={onClose}
-              className="flex-1 py-2 rounded-md text-sm text-[#a1a1aa] border border-[#242424] bg-transparent hover:bg-white/[0.03] transition-all">
+              className="flex-1 py-2.5 rounded-md text-sm text-[#a1a1aa] border border-[#242424] bg-transparent hover:bg-white/[0.03] transition-all">
               Cancelar
             </button>
             <button type="submit"
-              className="flex-1 py-2 rounded-md text-sm text-white bg-[#3B82F6] hover:bg-[#2563EB] transition-all font-medium">
+              className="flex-1 py-2.5 rounded-md text-sm text-white bg-[#3B82F6] hover:bg-[#2563EB] transition-all font-medium">
               Crear tarea
             </button>
           </div>
@@ -101,7 +118,7 @@ export default function CreateTaskModal({ open, onClose, leadId, leadName }: Pro
   )
 }
 
-const inputClass = 'w-full bg-[#111111] border border-[#242424] rounded-md px-3 py-2 text-sm text-white placeholder-[#3f3f46] focus:outline-none focus:border-[#3f3f46] transition-colors'
+const inputClass = 'w-full bg-[#111111] border border-[#242424] rounded-md px-3 py-2.5 text-sm text-white placeholder-[#3f3f46] focus:outline-none focus:border-[#3f3f46] transition-colors'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (

@@ -1,143 +1,154 @@
 'use client'
 
-// In-memory store con persistencia en localStorage (hasta que se conecte Supabase)
+// Cache local sincronizado con Supabase.
+// getX() devuelve el cache (síncrono, igual que antes).
+// loadX() fetcha Supabase y actualiza el cache.
+// addX/deleteX/updateX mutean Supabase y actualizan el cache en el acto.
 
 import { Lead, Task, Proposal, ContactHistory, Service, EmailTemplate } from '@/types'
+import { supabase } from './supabase'
 
-// localStorage helpers
-function load<T>(key: string, fallback: T[]): T[] {
-  if (typeof window === 'undefined') return fallback
-  try {
-    const raw = localStorage.getItem(key)
-    return raw ? JSON.parse(raw) : fallback
-  } catch { return fallback }
+// ─── listeners ───────────────────────────────────────────────────────────────
+function makeListeners() {
+  const fns: Array<() => void> = []
+  return {
+    notify: () => fns.forEach(fn => fn()),
+    subscribe: (fn: () => void) => {
+      fns.push(fn)
+      return () => { const i = fns.indexOf(fn); if (i > -1) fns.splice(i, 1) }
+    },
+  }
 }
 
-function save<T>(key: string, data: T[]) {
-  if (typeof window === 'undefined') return
-  try { localStorage.setItem(key, JSON.stringify(data)) } catch {}
-}
-
-// Leads
-let _leads: Lead[] = load('alphaflow_leads', [])
-const _leadsListeners: Array<() => void> = []
+// ─── LEADS ───────────────────────────────────────────────────────────────────
+let _leads: Lead[] = []
+const _leadsEvents = makeListeners()
 
 export function getLeads(): Lead[] { return _leads }
+export function onLeadsChange(fn: () => void) { return _leadsEvents.subscribe(fn) }
 
-export function addLead(lead: Lead) {
-  _leads = [lead, ..._leads]
-  save('alphaflow_leads', _leads)
-  _leadsListeners.forEach(fn => fn())
+export async function loadLeads() {
+  const { data } = await supabase.from('leads').select('*').order('created_at', { ascending: false })
+  _leads = (data ?? []) as Lead[]
+  _leadsEvents.notify()
 }
 
-export function updateLead(id: string, updates: Partial<Lead>) {
-  _leads = _leads.map(l => l.id === id ? { ...l, ...updates, updated_at: new Date().toISOString() } : l)
-  save('alphaflow_leads', _leads)
-  _leadsListeners.forEach(fn => fn())
+export async function addLead(lead: Omit<Lead, 'id' | 'created_at' | 'updated_at'>) {
+  const { data } = await supabase.from('leads').insert(lead).select().single()
+  if (data) { _leads = [data as Lead, ..._leads]; _leadsEvents.notify() }
 }
 
-export function deleteLead(id: string) {
+export async function updateLead(id: string, updates: Partial<Lead>) {
+  const { data } = await supabase.from('leads').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select().single()
+  if (data) { _leads = _leads.map(l => l.id === id ? data as Lead : l); _leadsEvents.notify() }
+}
+
+export async function deleteLead(id: string) {
+  await supabase.from('leads').delete().eq('id', id)
   _leads = _leads.filter(l => l.id !== id)
-  save('alphaflow_leads', _leads)
-  _leadsListeners.forEach(fn => fn())
+  _leadsEvents.notify()
 }
 
-export function onLeadsChange(fn: () => void) {
-  _leadsListeners.push(fn)
-  return () => { const i = _leadsListeners.indexOf(fn); if (i > -1) _leadsListeners.splice(i, 1) }
-}
-
-// Tasks
-let _tasks: Task[] = load('alphaflow_tasks', [])
-const _tasksListeners: Array<() => void> = []
+// ─── TASKS ───────────────────────────────────────────────────────────────────
+let _tasks: Task[] = []
+const _tasksEvents = makeListeners()
 
 export function getTasks(): Task[] { return _tasks }
+export function onTasksChange(fn: () => void) { return _tasksEvents.subscribe(fn) }
 
-export function addTask(task: Task) {
-  _tasks = [task, ..._tasks]
-  save('alphaflow_tasks', _tasks)
-  _tasksListeners.forEach(fn => fn())
+export async function loadTasks() {
+  const { data } = await supabase.from('tasks').select('*, lead:leads(first_name, last_name)').order('created_at', { ascending: false })
+  _tasks = (data ?? []) as Task[]
+  _tasksEvents.notify()
 }
 
-export function updateTask(id: string, updates: Partial<Task>) {
-  _tasks = _tasks.map(t => t.id === id ? { ...t, ...updates, updated_at: new Date().toISOString() } : t)
-  save('alphaflow_tasks', _tasks)
-  _tasksListeners.forEach(fn => fn())
+export async function addTask(task: Omit<Task, 'id' | 'created_at' | 'updated_at' | 'lead'>) {
+  const { data } = await supabase.from('tasks').insert(task).select('*, lead:leads(first_name, last_name)').single()
+  if (data) { _tasks = [data as Task, ..._tasks]; _tasksEvents.notify() }
 }
 
-export function deleteTask(id: string) {
+export async function updateTask(id: string, updates: Partial<Task>) {
+  const { data } = await supabase.from('tasks').update({ ...updates, updated_at: new Date().toISOString() }).eq('id', id).select('*, lead:leads(first_name, last_name)').single()
+  if (data) { _tasks = _tasks.map(t => t.id === id ? data as Task : t); _tasksEvents.notify() }
+}
+
+export async function deleteTask(id: string) {
+  await supabase.from('tasks').delete().eq('id', id)
   _tasks = _tasks.filter(t => t.id !== id)
-  save('alphaflow_tasks', _tasks)
-  _tasksListeners.forEach(fn => fn())
+  _tasksEvents.notify()
 }
 
-export function onTasksChange(fn: () => void) {
-  _tasksListeners.push(fn)
-  return () => { const i = _tasksListeners.indexOf(fn); if (i > -1) _tasksListeners.splice(i, 1) }
-}
-
-// Proposals
-let _proposals: Proposal[] = load('alphaflow_proposals', [])
-export function getProposals(): Proposal[] { return _proposals }
-export function addProposal(p: Proposal) {
-  _proposals = [p, ..._proposals]
-  save('alphaflow_proposals', _proposals)
-}
-export function deleteProposal(id: string) {
-  _proposals = _proposals.filter(p => p.id !== id)
-  save('alphaflow_proposals', _proposals)
-}
-
-// History
-let _history: ContactHistory[] = load('alphaflow_history', [])
-export function getHistory(): ContactHistory[] { return _history }
-export function addHistory(h: ContactHistory) {
-  _history = [..._history, h]
-  save('alphaflow_history', _history)
-}
-
-// Services
-let _services: Service[] = load('alphaflow_services', [])
-const _servicesListeners: Array<() => void> = []
+// ─── SERVICES ────────────────────────────────────────────────────────────────
+let _services: Service[] = []
+const _servicesEvents = makeListeners()
 
 export function getServices(): Service[] { return _services }
+export function onServicesChange(fn: () => void) { return _servicesEvents.subscribe(fn) }
 
-export function addService(s: Service) {
-  _services = [s, ..._services]
-  save('alphaflow_services', _services)
-  _servicesListeners.forEach(fn => fn())
+export async function loadServices() {
+  const { data } = await supabase.from('services').select('*').order('created_at', { ascending: false })
+  _services = (data ?? []) as Service[]
+  _servicesEvents.notify()
 }
 
-export function deleteService(id: string) {
+export async function addService(service: Omit<Service, 'id' | 'created_at' | 'updated_at'>) {
+  const { data } = await supabase.from('services').insert(service).select().single()
+  if (data) { _services = [data as Service, ..._services]; _servicesEvents.notify() }
+}
+
+export async function deleteService(id: string) {
+  await supabase.from('services').delete().eq('id', id)
   _services = _services.filter(s => s.id !== id)
-  save('alphaflow_services', _services)
-  _servicesListeners.forEach(fn => fn())
+  _servicesEvents.notify()
 }
 
-export function onServicesChange(fn: () => void) {
-  _servicesListeners.push(fn)
-  return () => { const i = _servicesListeners.indexOf(fn); if (i > -1) _servicesListeners.splice(i, 1) }
-}
-
-// Email Templates
-let _emailTemplates: EmailTemplate[] = load('alphaflow_email_templates', [])
-const _emailTemplatesListeners: Array<() => void> = []
+// ─── EMAIL TEMPLATES ─────────────────────────────────────────────────────────
+let _emailTemplates: EmailTemplate[] = []
+const _emailTemplatesEvents = makeListeners()
 
 export function getEmailTemplates(): EmailTemplate[] { return _emailTemplates }
+export function onEmailTemplatesChange(fn: () => void) { return _emailTemplatesEvents.subscribe(fn) }
 
-export function addEmailTemplate(t: EmailTemplate) {
-  _emailTemplates = [t, ..._emailTemplates]
-  save('alphaflow_email_templates', _emailTemplates)
-  _emailTemplatesListeners.forEach(fn => fn())
+export async function loadEmailTemplates() {
+  const { data } = await supabase.from('email_templates').select('*').order('created_at', { ascending: false })
+  _emailTemplates = (data ?? []) as EmailTemplate[]
+  _emailTemplatesEvents.notify()
 }
 
-export function deleteEmailTemplate(id: string) {
+export async function addEmailTemplate(template: Omit<EmailTemplate, 'id' | 'created_at' | 'updated_at'>) {
+  const { data } = await supabase.from('email_templates').insert(template).select().single()
+  if (data) { _emailTemplates = [data as EmailTemplate, ..._emailTemplates]; _emailTemplatesEvents.notify() }
+}
+
+export async function deleteEmailTemplate(id: string) {
+  await supabase.from('email_templates').delete().eq('id', id)
   _emailTemplates = _emailTemplates.filter(t => t.id !== id)
-  save('alphaflow_email_templates', _emailTemplates)
-  _emailTemplatesListeners.forEach(fn => fn())
+  _emailTemplatesEvents.notify()
 }
 
-export function onEmailTemplatesChange(fn: () => void) {
-  _emailTemplatesListeners.push(fn)
-  return () => { const i = _emailTemplatesListeners.indexOf(fn); if (i > -1) _emailTemplatesListeners.splice(i, 1) }
+// ─── PROPOSALS ───────────────────────────────────────────────────────────────
+let _proposals: Proposal[] = []
+
+export function getProposals(): Proposal[] { return _proposals }
+
+export async function loadProposals() {
+  const { data } = await supabase.from('proposals').select('*, lead:leads(first_name, last_name)').order('created_at', { ascending: false })
+  _proposals = (data ?? []) as Proposal[]
+}
+
+export async function addProposal(proposal: Omit<Proposal, 'id' | 'created_at' | 'updated_at'>) {
+  const { data } = await supabase.from('proposals').insert(proposal).select().single()
+  if (data) _proposals = [data as Proposal, ..._proposals]
+}
+
+// ─── HISTORY ─────────────────────────────────────────────────────────────────
+export async function getHistory(leadId?: string): Promise<ContactHistory[]> {
+  let q = supabase.from('contact_history').select('*').order('date', { ascending: false })
+  if (leadId) q = q.eq('lead_id', leadId)
+  const { data } = await q
+  return (data ?? []) as ContactHistory[]
+}
+
+export async function addHistory(h: Omit<ContactHistory, 'id' | 'created_at'>) {
+  await supabase.from('contact_history').insert(h)
 }

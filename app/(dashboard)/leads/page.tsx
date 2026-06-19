@@ -9,7 +9,7 @@ import ProjectBadge from '@/components/ui/ProjectBadge'
 import TemperatureBadge from '@/components/ui/TemperatureBadge'
 import PriorityBadge from '@/components/ui/PriorityBadge'
 import EmptyState from '@/components/ui/EmptyState'
-import { getLeads, deleteLead, onLeadsChange } from '@/lib/store'
+import { getLeads, loadLeads, deleteLead, onLeadsChange } from '@/lib/store'
 import { ALPHA_PROJECTS, COMMERCIAL_STATUSES, TEMPERATURES, PRIORITIES } from '@/lib/constants'
 import { formatDate, getInitials } from '@/lib/utils'
 import { Lead, AlphaProject, CommercialStatus, Temperature, Priority } from '@/types'
@@ -18,7 +18,7 @@ import { cn } from '@/lib/utils'
 
 export default function LeadsPage() {
   const router = useRouter()
-  const [leads, setLeads] = useState<Lead[]>(() => getLeads())
+  const [leads, setLeads] = useState<Lead[]>([])
   const [search, setSearch] = useState('')
   const [filterProject, setFilterProject] = useState<AlphaProject | ''>('')
   const [filterStatus, setFilterStatus] = useState<CommercialStatus | ''>('')
@@ -27,6 +27,7 @@ export default function LeadsPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   useEffect(() => {
+    loadLeads()
     return onLeadsChange(() => setLeads(getLeads()))
   }, [])
 

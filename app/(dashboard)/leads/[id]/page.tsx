@@ -12,8 +12,8 @@ import ProjectBadge from '@/components/ui/ProjectBadge'
 import TemperatureBadge from '@/components/ui/TemperatureBadge'
 import PriorityBadge from '@/components/ui/PriorityBadge'
 import CreateTaskModal from '@/components/modals/CreateTaskModal'
-import { getLeads, deleteLead, getTasks, deleteTask, onLeadsChange, onTasksChange, getHistory, getProposals } from '@/lib/store'
-import { mockEmailTemplates } from '@/lib/mock-data'
+import { getLeads, loadLeads, deleteLead, getTasks, loadTasks, deleteTask, onLeadsChange, onTasksChange, getEmailTemplates, loadEmailTemplates, getProposals, loadProposals, getHistory } from '@/lib/store'
+import { ContactHistory } from '@/types'
 import { formatDate, formatCurrency, getInitials, replaceTemplateVars } from '@/lib/utils'
 import { cn } from '@/lib/utils'
 import { Lead, Task } from '@/types'
@@ -23,22 +23,27 @@ type Tab = 'overview' | 'history' | 'emails' | 'proposals'
 export default function LeadDetailPage() {
   const { id } = useParams<{ id: string }>()
   const router = useRouter()
-  const [leads, setLeads] = useState<Lead[]>(() => getLeads())
-  const [tasks, setTasks] = useState<Task[]>(() => getTasks())
+  const [leads, setLeads] = useState<Lead[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [activeTab, setActiveTab] = useState<Tab>('overview')
   const [showTaskModal, setShowTaskModal] = useState(false)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [confirmDeleteLead, setConfirmDeleteLead] = useState(false)
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<string | null>(null)
+  const [history, setHistory] = useState<ContactHistory[]>([])
 
   useEffect(() => {
+    loadLeads()
+    loadTasks()
+    loadEmailTemplates()
+    loadProposals()
+    getHistory(id as string).then(setHistory)
     const unsub1 = onLeadsChange(() => setLeads(getLeads()))
     const unsub2 = onTasksChange(() => setTasks(getTasks()))
     return () => { unsub1(); unsub2() }
-  }, [])
+  }, [id])
 
   const lead = leads.find(l => l.id === id)
-  const history = getHistory().filter(h => h.lead_id === id)
   const proposals = getProposals().filter(p => p.lead_id === id)
 
   if (!lead) {
@@ -51,7 +56,7 @@ export default function LeadDetailPage() {
   }
 
   const leadTasks = tasks.filter(t => t.lead_id === id)
-  const suggestedEmails = mockEmailTemplates.filter(t => t.alpha_project === lead.alpha_project)
+  const suggestedEmails = getEmailTemplates().filter(t => t.alpha_project === lead.alpha_project)
   const templateVars: Record<string, string> = {
     Nombre: lead.first_name,
     Marca: lead.company ?? lead.first_name,
@@ -59,7 +64,7 @@ export default function LeadDetailPage() {
     ProyectoAlpha: lead.alpha_project,
   }
 
-  async function copyEmail(template: typeof mockEmailTemplates[0]) {
+  async function copyEmail(template: ReturnType<typeof getEmailTemplates>[0]) {
     const text = `Asunto: ${template.subject}\n\n${replaceTemplateVars(template.body, templateVars)}`
     await navigator.clipboard.writeText(text)
     setCopiedId(template.id)

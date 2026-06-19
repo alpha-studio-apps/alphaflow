@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Copy, CheckCheck, Mail, Plus, Trash2, X } from 'lucide-react'
 import ProjectBadge from '@/components/ui/ProjectBadge'
 import EmptyState from '@/components/ui/EmptyState'
-import { getEmailTemplates, addEmailTemplate, deleteEmailTemplate, onEmailTemplatesChange } from '@/lib/store'
+import { getEmailTemplates, loadEmailTemplates, addEmailTemplate, deleteEmailTemplate, onEmailTemplatesChange } from '@/lib/store'
 import { ALPHA_PROJECTS, TEMPERATURES } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 import { AlphaProject, EmailTemplate } from '@/types'
@@ -18,6 +18,7 @@ export default function EmailsPage() {
   const [showModal, setShowModal] = useState(false)
 
   useEffect(() => {
+    loadEmailTemplates()
     return onEmailTemplatesChange(() => setTemplates(getEmailTemplates()))
   }, [])
 
@@ -171,11 +172,9 @@ function CreateTemplateModal({ onClose }: { onClose: () => void }) {
     setForm(prev => ({ ...prev, [key]: value }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const now = new Date().toISOString()
-    addEmailTemplate({
-      id: crypto.randomUUID(),
+    await addEmailTemplate({
       alpha_project: form.alpha_project as EmailTemplate['alpha_project'],
       title: form.title,
       commercial_stage: form.commercial_stage,
@@ -183,8 +182,6 @@ function CreateTemplateModal({ onClose }: { onClose: () => void }) {
       subject: form.subject,
       body: form.body,
       active: true,
-      created_at: now,
-      updated_at: now,
     })
     onClose()
   }

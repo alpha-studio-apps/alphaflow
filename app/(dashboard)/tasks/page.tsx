@@ -7,7 +7,7 @@ import ProjectBadge from '@/components/ui/ProjectBadge'
 import PriorityBadge from '@/components/ui/PriorityBadge'
 import EmptyState from '@/components/ui/EmptyState'
 import CreateTaskModal from '@/components/modals/CreateTaskModal'
-import { getTasks, deleteTask, onTasksChange } from '@/lib/store'
+import { getTasks, loadTasks, deleteTask, onTasksChange } from '@/lib/store'
 import { ALPHA_PROJECTS, TASK_STATUS_COLORS } from '@/lib/constants'
 import { formatDate, isOverdue } from '@/lib/utils'
 import { cn } from '@/lib/utils'
@@ -16,13 +16,14 @@ import { Task, AlphaProject } from '@/types'
 type ViewFilter = 'all' | 'today' | 'week' | 'overdue' | 'done'
 
 export default function TasksPage() {
-  const [tasks, setTasks] = useState<Task[]>(() => getTasks())
+  const [tasks, setTasks] = useState<Task[]>([])
   const [showModal, setShowModal] = useState(false)
   const [view, setView] = useState<ViewFilter>('all')
   const [filterProject, setFilterProject] = useState<AlphaProject | ''>('')
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   useEffect(() => {
+    loadTasks()
     return onTasksChange(() => setTasks(getTasks()))
   }, [])
 

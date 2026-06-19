@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { Plus, Trash2, X, Briefcase } from 'lucide-react'
 import ProjectBadge from '@/components/ui/ProjectBadge'
 import EmptyState from '@/components/ui/EmptyState'
-import { getServices, addService, deleteService, onServicesChange } from '@/lib/store'
+import { getServices, loadServices, addService, deleteService, onServicesChange } from '@/lib/store'
 import { formatCurrency } from '@/lib/utils'
 import { ALPHA_PROJECTS } from '@/lib/constants'
 import { cn } from '@/lib/utils'
@@ -18,6 +18,7 @@ export default function ServicesPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   useEffect(() => {
+    loadServices()
     return onServicesChange(() => setServices(getServices()))
   }, [])
 
@@ -144,11 +145,9 @@ function CreateServiceModal({ onClose }: { onClose: () => void }) {
     setForm(prev => ({ ...prev, [key]: value }))
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    const now = new Date().toISOString()
-    addService({
-      id: crypto.randomUUID(),
+    await addService({
       alpha_project: form.alpha_project as Service['alpha_project'],
       name: form.name,
       description: form.description || undefined,
@@ -159,8 +158,6 @@ function CreateServiceModal({ onClose }: { onClose: () => void }) {
       currency: form.currency as 'ARS' | 'USD',
       duration: form.duration,
       active: true,
-      created_at: now,
-      updated_at: now,
     })
     onClose()
   }
