@@ -1,24 +1,36 @@
+'use client'
+
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { UserCheck } from 'lucide-react'
 import ProjectBadge from '@/components/ui/ProjectBadge'
 import StatusBadge from '@/components/ui/StatusBadge'
 import EmptyState from '@/components/ui/EmptyState'
-import { mockLeads } from '@/lib/mock-data'
+import { getLeads, loadLeads, onLeadsChange } from '@/lib/store'
 import { formatDate, getInitials } from '@/lib/utils'
+import { Lead } from '@/types'
 
 export default function ClientsPage() {
-  const clients = mockLeads.filter(l => l.is_client)
+  const [leads, setLeads] = useState<Lead[]>([])
+
+  useEffect(() => {
+    loadLeads()
+    return onLeadsChange(() => setLeads(getLeads()))
+  }, [])
+
+  // Cliente = is_client true O commercial_status = 'Cliente activo'
+  const clients = leads.filter(l => l.is_client || l.commercial_status === 'Cliente activo')
 
   return (
     <div className="max-w-[1100px] mx-auto space-y-5">
       <div>
-        <h1 className="text-2xl font-bold text-white tracking-tight">Clientes activos</h1>
+        <h1 className="text-xl md:text-2xl font-bold text-white tracking-tight">Clientes activos</h1>
         <p className="text-sm text-[#71717a] mt-1">{clients.length} cliente{clients.length !== 1 ? 's' : ''} en curso</p>
       </div>
 
       {clients.length === 0 ? (
         <div className="bg-[#111111] border border-[#242424] rounded-xl">
-          <EmptyState icon={UserCheck} title="Sin clientes activos" description="Cuando un lead pase a cliente activo, aparecerá aquí." />
+          <EmptyState icon={UserCheck} title="Sin clientes activos" description="Cuando un lead tenga estado 'Cliente activo', aparecerá aquí." />
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -44,10 +56,9 @@ export default function ClientsPage() {
                   <p className="text-xs text-[#71717a]">Servicio: <span className="text-[#a1a1aa]">{client.service_interested}</span></p>
                 </div>
               )}
-              {(client.follow_up_date || client.next_step) && (
+              {client.follow_up_date && (
                 <div className="mt-2">
-                  {client.next_step && <p className="text-xs text-[#71717a] truncate">→ {client.next_step}</p>}
-                  {client.follow_up_date && <p className="text-xs text-[#3B82F6] mt-0.5">Seguimiento: {formatDate(client.follow_up_date, { day: '2-digit', month: 'short' })}</p>}
+                  <p className="text-xs text-[#3B82F6]">Seguimiento: {formatDate(client.follow_up_date, { day: '2-digit', month: 'short' })}</p>
                 </div>
               )}
             </Link>
