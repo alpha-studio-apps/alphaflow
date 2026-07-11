@@ -12,6 +12,7 @@ import ProjectBadge from '@/components/ui/ProjectBadge'
 import TemperatureBadge from '@/components/ui/TemperatureBadge'
 import PriorityBadge from '@/components/ui/PriorityBadge'
 import CreateTaskModal from '@/components/modals/CreateTaskModal'
+import EditLeadModal from '@/components/modals/EditLeadModal'
 import { getLeads, loadLeads, deleteLead, getTasks, loadTasks, deleteTask, onLeadsChange, onTasksChange, getEmailTemplates, loadEmailTemplates, getProposals, loadProposals, getHistory } from '@/lib/store'
 import { ContactHistory } from '@/types'
 import { formatDate, formatCurrency, getInitials, replaceTemplateVars } from '@/lib/utils'
@@ -31,6 +32,7 @@ export default function LeadDetailPage() {
   const [confirmDeleteLead, setConfirmDeleteLead] = useState(false)
   const [confirmDeleteTask, setConfirmDeleteTask] = useState<string | null>(null)
   const [history, setHistory] = useState<ContactHistory[]>([])
+  const [showEditModal, setShowEditModal] = useState(false)
 
   useEffect(() => {
     loadLeads()
@@ -138,6 +140,14 @@ export default function LeadDetailPage() {
               <Plus className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Crear tarea</span>
               <span className="sm:hidden">Tarea</span>
+            </button>
+            <button
+              onClick={() => setShowEditModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm text-[#a1a1aa] border border-[#242424] bg-transparent hover:bg-white/[0.03] hover:text-white transition-all"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Editar lead</span>
+              <span className="sm:hidden">Editar</span>
             </button>
             <button
               onClick={() => setActiveTab('emails')}
@@ -398,6 +408,7 @@ export default function LeadDetailPage() {
       </div>
 
       <CreateTaskModal open={showTaskModal} onClose={() => setShowTaskModal(false)} leadId={lead.id} leadName={`${lead.first_name} ${lead.last_name}`} />
+      {showEditModal && <EditLeadModal lead={lead} onClose={() => setShowEditModal(false)} />}
 
       {/* Confirm delete hint */}
       {confirmDeleteLead && (
