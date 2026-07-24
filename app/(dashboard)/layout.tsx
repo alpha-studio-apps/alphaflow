@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import Sidebar from '@/components/layout/Sidebar'
 import Topbar from '@/components/layout/Topbar'
+import MonthlyRolloverModal from '@/components/modals/MonthlyRolloverModal'
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -15,6 +16,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-y-auto p-4 md:p-6">
           {children}
         </main>
+        <MonthlyRolloverModal />
       </div>
     </div>
   )
