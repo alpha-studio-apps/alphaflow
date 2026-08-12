@@ -52,7 +52,6 @@ export async function POST(req: NextRequest) {
       email: email || null,
       phone: phone || null,
       instagram: instagram || null,
-      website: website || null,
       alpha_project,
       service_interested: service_interested || null,
       commercial_status: 'Nuevo lead',
