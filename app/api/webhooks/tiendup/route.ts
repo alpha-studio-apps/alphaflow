@@ -40,8 +40,8 @@ export async function POST(req: NextRequest) {
     data.product?.name ?? data.order?.items?.[0]?.name ??
     data.course?.name ?? data.plan?.name ?? data.subscription?.name ?? ''
 
-  const amount: number | null =
-    data.total ?? data.order?.total ?? data.amount ?? null
+  const amount: number =
+    data.total ?? data.order?.total ?? data.amount ?? 22500
 
   const today = new Date().toISOString().split('T')[0]
 
