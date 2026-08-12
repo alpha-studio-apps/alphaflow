@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function PriorityBadge({ priority, size = 'md' }: Props) {
-  const colors = PRIORITY_COLORS[priority]
+  const colors = PRIORITY_COLORS[priority] ?? { bg: 'bg-zinc-500/10', text: 'text-zinc-400' }
   return (
     <span
       className={cn(

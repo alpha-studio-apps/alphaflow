@@ -9,7 +9,7 @@ interface Props {
 }
 
 export default function TemperatureBadge({ temperature, size = 'md', showIcon = true }: Props) {
-  const colors = TEMPERATURE_COLORS[temperature]
+  const colors = TEMPERATURE_COLORS[temperature] ?? { bg: 'bg-zinc-500/10', text: 'text-zinc-400', icon: '—' }
   return (
     <span
       className={cn(

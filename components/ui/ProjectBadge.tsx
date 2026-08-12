@@ -8,7 +8,7 @@ interface Props {
 }
 
 export default function ProjectBadge({ project, size = 'md' }: Props) {
-  const colors = PROJECT_COLORS[project]
+  const colors = PROJECT_COLORS[project] ?? { bg: '#111111', text: '#a1a1aa', border: '#3f3f46' }
   return (
     <span
       className={cn(
