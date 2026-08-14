@@ -127,10 +127,25 @@ export default function DashboardPage() {
         <MetricCard title="Clientes activos" value={activeClients.length} subtitle="Contratos en curso" icon={UserCheck} iconColor="text-emerald-400" accent="#10B981" />
         <MetricCard title="Tareas vencidas" value={overdueTasks.length} subtitle="Requieren acción" icon={AlertTriangle} iconColor="text-red-400" accent="#EF4444" />
         <MetricCard title="Pipeline" value={formatCurrency(pipelineValue)} subtitle="Valor total estimado" icon={DollarSign} iconColor="text-[#3B82F6]" accent="#3B82F6" />
-        <MetricCard title="Tareas hoy" value={todayTasks.length} subtitle="Agendadas para hoy" icon={Calendar} iconColor="text-violet-400" accent="#8B5CF6" />
-        {/* ProJump */}
-        <MetricCard title="ProJump este mes" value={`$${projumpMonthRevenue.toLocaleString('es-AR')}`} subtitle={`${projumpThisMonth.length} venta${projumpThisMonth.length !== 1 ? 's' : ''} nueva${projumpThisMonth.length !== 1 ? 's' : ''}`} icon={TrendingUp} iconColor="text-purple-400" accent="#C084FC" />
-        <MetricCard title="ProJump total" value={`$${projumpTotal.toLocaleString('es-AR')}`} subtitle={`${projumpBuyers.length} comprador${projumpBuyers.length !== 1 ? 'es' : ''} ARS`} icon={ShoppingBag} iconColor="text-purple-400" accent="#C084FC" />
+        {/* ProJump — card doble */}
+        <div className="col-span-2 lg:col-span-1 bg-[#111111] border border-[#242424] rounded-xl p-4 flex gap-4" style={{ borderColor: '#2d1a4a' }}>
+          <div className="flex-1 min-w-0 space-y-1 border-r border-[#2d1a4a] pr-4">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-[#71717a] uppercase tracking-wider">ProJump este mes</span>
+              <TrendingUp className="w-3.5 h-3.5 text-[#C084FC]" />
+            </div>
+            <p className="text-lg font-bold text-white">${projumpMonthRevenue.toLocaleString('es-AR')}</p>
+            <p className="text-xs text-[#71717a]">{projumpThisMonth.length} venta{projumpThisMonth.length !== 1 ? 's' : ''} nueva{projumpThisMonth.length !== 1 ? 's' : ''}</p>
+          </div>
+          <div className="flex-1 min-w-0 space-y-1">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] text-[#71717a] uppercase tracking-wider">ProJump total</span>
+              <ShoppingBag className="w-3.5 h-3.5 text-[#C084FC]" />
+            </div>
+            <p className="text-lg font-bold text-white">${projumpTotal.toLocaleString('es-AR')}</p>
+            <p className="text-xs text-[#71717a]">{projumpBuyers.length} comprador{projumpBuyers.length !== 1 ? 'es' : ''} ARS</p>
+          </div>
+        </div>
       </div>
 
       {!isEmpty && (
