@@ -85,7 +85,7 @@ export default function DashboardPage() {
   const hotLeads = leads.filter(l => l.temperature === 'Caliente' && !l.is_client)
   const sentProposals = proposals.filter(p => p.status === 'Enviada' || p.status === 'Vista')
   const pendingFollowups = leads.filter(l => l.follow_up_date && l.follow_up_date <= today && l.commercial_status !== 'Perdido')
-  const activeClients = leads.filter(l => l.is_client)
+  const activeClients = leads.filter(l => l.is_client && l.alpha_project !== 'ProJump')
   const overdueTasks = tasks.filter(t => t.status === 'Vencido' || (t.due_date && isOverdue(t.due_date) && t.status !== 'Hecho'))
   const todayTasks = tasks.filter(t => t.due_date === today && t.status !== 'Hecho')
   const pipelineValue = leads.filter(l => !l.is_client).reduce((sum, l) => sum + (l.estimated_value ?? 0), 0)

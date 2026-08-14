@@ -18,8 +18,8 @@ export default function ClientsPage() {
     return onLeadsChange(() => setLeads(getLeads()))
   }, [])
 
-  // Cliente = is_client true O commercial_status = 'Cliente activo'
-  const clients = leads.filter(l => l.is_client || l.commercial_status === 'Cliente activo')
+  // Cliente mensual = is_client true pero NO ProJump (compra única, no contrato)
+  const clients = leads.filter(l => (l.is_client || l.commercial_status === 'Cliente activo') && l.alpha_project !== 'ProJump')
 
   return (
     <div className="max-w-[1100px] mx-auto space-y-5">
