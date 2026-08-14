@@ -2,17 +2,67 @@
 
 import { useState, useEffect } from 'react'
 import {
-  Users, Flame, FileText, Clock, UserCheck, AlertTriangle, DollarSign, Calendar
+  Users, Flame, FileText, Clock, UserCheck, AlertTriangle, DollarSign, Calendar,
+  ShoppingBag, TrendingUp, CheckCircle2, AlertCircle, Info, ChevronRight
 } from 'lucide-react'
 import MetricCard from '@/components/ui/MetricCard'
 import StatusBadge from '@/components/ui/StatusBadge'
 import ProjectBadge from '@/components/ui/ProjectBadge'
 import TemperatureBadge from '@/components/ui/TemperatureBadge'
-import PriorityBadge from '@/components/ui/PriorityBadge'
 import { getLeads, getTasks, getProposals, loadLeads, loadTasks, loadProposals, onLeadsChange, onTasksChange } from '@/lib/store'
 import { formatDate, formatCurrency, isOverdue } from '@/lib/utils'
 import Link from 'next/link'
 import { Lead, Task, Proposal } from '@/types'
+
+type Tip = { level: 'urgent' | 'warning' | 'info'; text: string; href?: string }
+
+function buildTips(leads: Lead[], tasks: Task[], proposals: Proposal[], today: string): Tip[] {
+  const tips: Tip[] = []
+  const thisMonth = today.slice(0, 7)
+  const sevenDaysAgo = new Date(Date.now() - 7 * 864e5).toISOString().split('T')[0]
+  const fourteenDaysAgo = new Date(Date.now() - 14 * 864e5).toISOString().split('T')[0]
+
+  // Seguimientos vencidos
+  const vencidos = leads.filter(l => l.follow_up_date && l.follow_up_date < today && l.commercial_status !== 'Perdido' && l.commercial_status !== 'Pausado')
+  if (vencidos.length > 0) tips.push({ level: 'urgent', text: `${vencidos.length} seguimiento${vencidos.length > 1 ? 's' : ''} vencido${vencidos.length > 1 ? 's' : ''} — reagendá o cerrá`, href: '/leads' })
+
+  // Tareas vencidas
+  const overdue = tasks.filter(t => t.due_date && isOverdue(t.due_date) && t.status !== 'Hecho')
+  if (overdue.length > 0) tips.push({ level: 'urgent', text: `${overdue.length} tarea${overdue.length > 1 ? 's' : ''} vencida${overdue.length > 1 ? 's' : ''} sin completar`, href: '/tasks' })
+
+  // Propuestas viejas sin respuesta
+  const oldProposals = proposals.filter(p => (p.status === 'Enviada' || p.status === 'Vista') && p.sent_date && p.sent_date < sevenDaysAgo)
+  if (oldProposals.length > 0) tips.push({ level: 'warning', text: `${oldProposals.length} propuesta${oldProposals.length > 1 ? 's' : ''} sin respuesta hace más de 7 días`, href: '/proposals' })
+
+  // Leads calientes sin seguimiento agendado
+  const hotNoFollowup = leads.filter(l => l.temperature === 'Caliente' && !l.is_client && !l.follow_up_date)
+  if (hotNoFollowup.length > 0) tips.push({ level: 'warning', text: `${hotNoFollowup.length} lead${hotNoFollowup.length > 1 ? 's' : ''} caliente${hotNoFollowup.length > 1 ? 's' : ''} sin seguimiento agendado`, href: '/leads' })
+
+  // Clientes sin actividad en 14 días
+  const clientesInactivos = leads.filter(l => l.is_client && l.updated_at && l.updated_at.split('T')[0] < fourteenDaysAgo)
+  if (clientesInactivos.length > 0) tips.push({ level: 'warning', text: `${clientesInactivos.length} cliente${clientesInactivos.length > 1 ? 's' : ''} sin actividad en más de 14 días — ¿todo bien con el servicio?`, href: '/clients' })
+
+  // Nuevos leads sin primer contacto (sin nota ni seguimiento)
+  const sinContactar = leads.filter(l => !l.is_client && l.commercial_status === 'Nuevo lead' && l.first_contact_date && l.first_contact_date >= sevenDaysAgo && !l.follow_up_date && !l.quick_notes)
+  if (sinContactar.length > 0) tips.push({ level: 'warning', text: `${sinContactar.length} lead${sinContactar.length > 1 ? 's' : ''} nuevo${sinContactar.length > 1 ? 's' : ''} sin primera respuesta`, href: '/leads' })
+
+  // ProJump: compradores sin email registrado
+  const projumpSinEmail = leads.filter(l => l.alpha_project === 'ProJump' && l.is_client && !l.email)
+  if (projumpSinEmail.length > 0) tips.push({ level: 'info', text: `${projumpSinEmail.length} comprador${projumpSinEmail.length > 1 ? 'es' : ''} de ProJump sin email — no van a recibir campañas`, href: '/projump' })
+
+  // ProJump: ventas este mes
+  const projumpThisMonth = leads.filter(l => l.alpha_project === 'ProJump' && l.is_client && l.first_contact_date?.startsWith(thisMonth))
+  if (projumpThisMonth.length > 0) tips.push({ level: 'info', text: `${projumpThisMonth.length} venta${projumpThisMonth.length > 1 ? 's' : ''} nueva${projumpThisMonth.length > 1 ? 's' : ''} de ProJump este mes — buen momento para una campaña de contenido`, href: '/projump' })
+
+  // Sin leads nuevos este mes
+  const newThisMonth = leads.filter(l => l.first_contact_date?.startsWith(thisMonth))
+  if (newThisMonth.length === 0 && leads.length > 0) tips.push({ level: 'info', text: 'No entraron leads este mes — chequeá si las páginas web están activas', href: '/leads' })
+
+  // Todo en orden
+  if (tips.length === 0) tips.push({ level: 'info', text: 'Todo al día — buen momento para prospectar nuevos clientes o armar una campaña de email' })
+
+  return tips.slice(0, 7)
+}
 
 export default function DashboardPage() {
   const [leads, setLeads] = useState<Lead[]>([])
@@ -29,6 +79,7 @@ export default function DashboardPage() {
   }, [])
 
   const today = new Date().toISOString().split('T')[0]
+  const thisMonth = today.slice(0, 7)
 
   const activeLeads = leads.filter(l => l.commercial_status !== 'Perdido' && l.commercial_status !== 'Pausado' && !l.is_client)
   const hotLeads = leads.filter(l => l.temperature === 'Caliente' && !l.is_client)
@@ -39,6 +90,13 @@ export default function DashboardPage() {
   const todayTasks = tasks.filter(t => t.due_date === today && t.status !== 'Hecho')
   const pipelineValue = leads.filter(l => !l.is_client).reduce((sum, l) => sum + (l.estimated_value ?? 0), 0)
 
+  // ProJump metrics
+  const projumpBuyers = leads.filter(l => l.alpha_project === 'ProJump' && l.is_client)
+  const projumpTotal = projumpBuyers.reduce((sum, l) => sum + (l.estimated_value ?? 22500), 0)
+  const projumpThisMonth = projumpBuyers.filter(l => l.first_contact_date?.startsWith(thisMonth))
+  const projumpMonthRevenue = projumpThisMonth.reduce((sum, l) => sum + (l.estimated_value ?? 22500), 0)
+
+  const tips = buildTips(leads, tasks, proposals, today)
   const isEmpty = leads.length === 0 && tasks.length === 0
 
   return (
@@ -70,51 +128,35 @@ export default function DashboardPage() {
         <MetricCard title="Tareas vencidas" value={overdueTasks.length} subtitle="Requieren acción" icon={AlertTriangle} iconColor="text-red-400" accent="#EF4444" />
         <MetricCard title="Pipeline" value={formatCurrency(pipelineValue)} subtitle="Valor total estimado" icon={DollarSign} iconColor="text-[#3B82F6]" accent="#3B82F6" />
         <MetricCard title="Tareas hoy" value={todayTasks.length} subtitle="Agendadas para hoy" icon={Calendar} iconColor="text-violet-400" accent="#8B5CF6" />
+        {/* ProJump */}
+        <MetricCard title="ProJump este mes" value={`$${projumpMonthRevenue.toLocaleString('es-AR')}`} subtitle={`${projumpThisMonth.length} venta${projumpThisMonth.length !== 1 ? 's' : ''} nueva${projumpThisMonth.length !== 1 ? 's' : ''}`} icon={TrendingUp} iconColor="text-purple-400" accent="#C084FC" />
+        <MetricCard title="ProJump total" value={`$${projumpTotal.toLocaleString('es-AR')}`} subtitle={`${projumpBuyers.length} comprador${projumpBuyers.length !== 1 ? 'es' : ''} ARS`} icon={ShoppingBag} iconColor="text-purple-400" accent="#C084FC" />
       </div>
 
       {!isEmpty && (
         <>
           {/* Main panels */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-5">
-            {/* Hoy */}
+            {/* Recomendaciones */}
             <div className="lg:col-span-2 bg-[#111111] border border-[#242424] rounded-xl overflow-hidden">
-              <div className="px-4 md:px-5 py-4 border-b border-[#1a1a1a] flex items-center justify-between">
-                <div>
-                  <h2 className="text-sm font-semibold text-white">Hoy tenés que hacer</h2>
-                  <p className="text-xs text-[#71717a] mt-0.5">
-                    {todayTasks.length > 0 ? `${todayTasks.length} tarea${todayTasks.length > 1 ? 's' : ''} para hoy` : 'No hay tareas para hoy'}
-                  </p>
-                </div>
-                <Link href="/tasks" className="text-xs text-[#71717a] hover:text-white transition-colors shrink-0">Ver todas →</Link>
+              <div className="px-4 md:px-5 py-4 border-b border-[#1a1a1a]">
+                <h2 className="text-sm font-semibold text-white">Qué revisar hoy</h2>
+                <p className="text-xs text-[#71717a] mt-0.5">Recomendaciones basadas en tu operación actual</p>
               </div>
               <div className="divide-y divide-[#1a1a1a]">
-                {todayTasks.length === 0 && overdueTasks.length === 0 ? (
-                  <div className="px-5 py-10 text-center text-sm text-[#71717a]">No hay tareas pendientes</div>
-                ) : (
-                  [...todayTasks, ...overdueTasks.filter(t => !todayTasks.includes(t))].slice(0, 6).map(task => (
-                    <div key={task.id} className="px-4 md:px-5 py-3.5 flex items-center gap-3 hover:bg-white/[0.02] transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          <span className="text-sm text-white truncate">{task.title}</span>
-                          {task.status === 'Vencido' && (
-                            <span className="text-[10px] bg-red-500/10 text-red-400 px-1.5 py-0.5 rounded-full shrink-0">Vencido</span>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-2 flex-wrap">
-                          {task.lead && <span className="text-xs text-[#71717a]">{task.lead.first_name} {task.lead.last_name}</span>}
-                          <ProjectBadge project={task.alpha_project} size="sm" />
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <PriorityBadge priority={task.priority} size="sm" />
-                        {task.due_date && <span className="text-xs text-[#71717a] hidden sm:block">{formatDate(task.due_date, { day: '2-digit', month: 'short' })}</span>}
-                      </div>
-                      {task.lead && (
-                        <Link href={`/leads/${task.lead_id}`} className="shrink-0 text-xs text-[#3f3f46] hover:text-white transition-colors">→</Link>
-                      )}
+                {tips.map((tip, i) => {
+                  const Icon = tip.level === 'urgent' ? AlertCircle : tip.level === 'warning' ? AlertTriangle : CheckCircle2
+                  const color = tip.level === 'urgent' ? 'text-red-400' : tip.level === 'warning' ? 'text-amber-400' : 'text-emerald-400'
+                  const bg = tip.level === 'urgent' ? 'bg-red-500/5' : tip.level === 'warning' ? 'bg-amber-500/5' : ''
+                  const row = (
+                    <div key={i} className={`px-4 md:px-5 py-3.5 flex items-center gap-3 ${bg} ${tip.href ? 'hover:bg-white/[0.03] transition-colors' : ''}`}>
+                      <Icon className={`w-4 h-4 shrink-0 ${color}`} />
+                      <span className="text-sm text-[#a1a1aa] flex-1">{tip.text}</span>
+                      {tip.href && <ChevronRight className="w-3.5 h-3.5 text-[#3f3f46] shrink-0" />}
                     </div>
-                  ))
-                )}
+                  )
+                  return tip.href ? <Link key={i} href={tip.href}>{row}</Link> : row
+                })}
               </div>
             </div>
 

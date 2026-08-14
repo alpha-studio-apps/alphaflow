@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
   LayoutDashboard, Users, UserCheck, CheckSquare, Briefcase,
-  Mail, FileText, BarChart2, Settings, Zap, X, ShoppingBag,
+  Mail, FileText, BarChart2, Settings, Zap, X, ShoppingBag, Megaphone,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -18,6 +18,7 @@ const nav = [
   { href: '/proposals', label: 'Propuestas', icon: FileText },
   { href: '/reports', label: 'Reportes', icon: BarChart2 },
   { href: '/projump', label: 'ProJump', icon: ShoppingBag },
+  { href: '/campaigns', label: 'Campañas', icon: Megaphone },
 ]
 
 interface Props {
