@@ -209,14 +209,12 @@ export default function CampaignsPage() {
                   <input ref={imgRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageChange} />
                 </label>
               </div>
+              <p className="text-[10px] text-[#3f3f46]">Recomendado: 600 × 250 px · JPG o PNG · máx 1 MB</p>
               {profileImage ? (
-                <div className="flex items-center gap-3">
+                <div className="space-y-2">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={profileImage} alt="preview" className="w-14 h-14 rounded-full object-cover border border-[#242424]" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs text-[#a1a1aa]">Aparece arriba del texto en el email</p>
-                    <button onClick={() => setProfileImage(null)} className="text-xs text-red-400 hover:text-red-300 transition-colors mt-1">Quitar imagen</button>
-                  </div>
+                  <img src={profileImage} alt="preview" className="w-full rounded-lg object-cover border border-[#242424]" style={{ maxHeight: 140, objectFit: 'cover' }} />
+                  <button onClick={() => setProfileImage(null)} className="text-xs text-red-400 hover:text-red-300 transition-colors">Quitar imagen</button>
                 </div>
               ) : (
                 <p className="text-xs text-[#3f3f46]">Sin imagen — se envía solo texto</p>

@@ -25,7 +25,18 @@ async function getRecipients(alpha_project: string, temperature: string, is_clie
   return (data ?? []).filter(l => l.email)
 }
 
-// GET — preview de destinatarios (lista completa)
+function buildHtml(bodyText: string, hasImage: boolean): string {
+  const imgBlock = hasImage
+    ? `<img src="cid:emailbanner" alt="" style="width:100%;max-width:600px;display:block;border-radius:8px;margin-bottom:28px"/>`
+    : ''
+  const paragraphs = bodyText
+    .split('\n')
+    .map(l => l.trim() === '' ? '<br/>' : `<p style="margin:0 0 14px;line-height:1.6">${l}</p>`)
+    .join('')
+  return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:32px 24px;color:#111111;background:#ffffff">${imgBlock}${paragraphs}</body></html>`
+}
+
+// GET — lista completa de destinatarios
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const alpha_project = searchParams.get('alpha_project') ?? ''
@@ -34,17 +45,6 @@ export async function GET(req: NextRequest) {
 
   const recipients = await getRecipients(alpha_project, temperature, is_client)
   return NextResponse.json({ count: recipients.length, recipients })
-}
-
-function buildHtml(bodyText: string, profileImage?: string): string {
-  const imgBlock = profileImage
-    ? `<div style="text-align:center;margin-bottom:24px"><img src="${profileImage}" alt="foto" style="width:80px;height:80px;border-radius:50%;object-fit:cover;display:inline-block"/></div>`
-    : ''
-  const paragraphs = bodyText
-    .split('\n')
-    .map(l => l.trim() === '' ? '<br/>' : `<p style="margin:0 0 12px">${l}</p>`)
-    .join('')
-  return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#111111;background:#ffffff">${imgBlock}${paragraphs}</body></html>`
 }
 
 // POST — envío real
@@ -66,42 +66,58 @@ export async function POST(req: NextRequest) {
   }
 
   const from = `${fromName || 'Nahuel'} <noreply@nahuelcontent.com>`
+  const hasImage = !!profileImage
 
-  // Preparar adjuntos — base64 string directo (batch no serializa Buffer)
-  const resendAttachments = (attachments ?? []).map((a: { filename: string; content: string }) => ({
+  // Adjuntos PDF
+  const pdfAttachments = (attachments ?? []).map((a: { filename: string; content: string }) => ({
     filename: a.filename,
     content: a.content,
+    content_type: 'application/pdf',
   }))
 
-  const results = { sent: 0, failed: 0, errors: [] as string[] }
+  // Imagen de portada como inline attachment (CID)
+  const imageAttachment = hasImage ? (() => {
+    const base64 = profileImage.includes(',') ? profileImage.split(',')[1] : profileImage
+    const contentType = profileImage.match(/data:([^;]+)/)?.[1] ?? 'image/jpeg'
+    return {
+      filename: 'banner.jpg',
+      content: base64,
+      content_type: contentType,
+      headers: {
+        'Content-ID': '<emailbanner>',
+        'Content-Disposition': 'inline; filename="banner.jpg"',
+      },
+    }
+  })() : null
 
-  // Enviar en lotes de 50
-  for (let i = 0; i < recipients.length; i += 50) {
-    const chunk = recipients.slice(i, i + 50)
-    const emails = chunk.map(lead => {
-      const firstName = lead.first_name || 'Hola'
-      const personalizedBody = body
-        .replace(/\[Nombre\]/g, firstName)
-        .replace(/\[nombre\]/g, firstName)
+  const allAttachments = [
+    ...(imageAttachment ? [imageAttachment] : []),
+    ...pdfAttachments,
+  ]
 
-      return {
+  const results = { sent: 0, failed: 0 }
+
+  // Envíos individuales (más confiable con adjuntos)
+  for (const lead of recipients) {
+    const firstName = lead.first_name || 'Hola'
+    const personalizedBody = body
+      .replace(/\[Nombre\]/g, firstName)
+      .replace(/\[nombre\]/g, firstName)
+
+    try {
+      await resend.emails.send({
         from,
         to: lead.email as string,
         reply_to: replyTo || 'nahuelcontent@gmail.com',
         subject,
-        html: buildHtml(personalizedBody, profileImage),
-        ...(resendAttachments.length > 0 && { attachments: resendAttachments }),
-      }
-    })
-
-    try {
-      await resend.batch.send(emails)
-      results.sent += chunk.length
-    } catch (err: unknown) {
-      results.failed += chunk.length
-      results.errors.push(err instanceof Error ? err.message : String(err))
+        html: buildHtml(personalizedBody, hasImage),
+        ...(allAttachments.length > 0 && { attachments: allAttachments }),
+      })
+      results.sent++
+    } catch {
+      results.failed++
     }
   }
 
-  return NextResponse.json({ ok: true, sent: results.sent, failed: results.failed, errors: results.errors })
+  return NextResponse.json({ ok: true, sent: results.sent, failed: results.failed })
 }
