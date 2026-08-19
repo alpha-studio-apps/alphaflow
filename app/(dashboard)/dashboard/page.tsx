@@ -46,6 +46,19 @@ function buildTips(leads: Lead[], tasks: Task[], proposals: Proposal[], today: s
   const sinContactar = leads.filter(l => !l.is_client && l.commercial_status === 'Nuevo lead' && l.first_contact_date && l.first_contact_date >= sevenDaysAgo && !l.follow_up_date && !l.quick_notes)
   if (sinContactar.length > 0) tips.push({ level: 'warning', text: `${sinContactar.length} lead${sinContactar.length > 1 ? 's' : ''} nuevo${sinContactar.length > 1 ? 's' : ''} sin primera respuesta`, href: '/leads' })
 
+  // Recordatorio mensual: mandar campaña a ProJump
+  const dayOfMonth = new Date().getDate()
+  const projumpBuyers = leads.filter(l => l.alpha_project === 'ProJump' && l.is_client && l.email)
+  if (projumpBuyers.length > 0) {
+    // Avisar toda la segunda quincena del mes
+    if (dayOfMonth >= 15) {
+      tips.push({ level: 'warning', text: `Recordatorio: mandá la campaña mensual de email a los ${projumpBuyers.length} compradores de ProJump`, href: '/campaigns' })
+    } else if (dayOfMonth <= 5) {
+      // Los primeros días del mes también recordar
+      tips.push({ level: 'info', text: `Inicio de mes: ¿ya enviaste la campaña a los compradores de ProJump?`, href: '/campaigns' })
+    }
+  }
+
   // ProJump: compradores sin email registrado
   const projumpSinEmail = leads.filter(l => l.alpha_project === 'ProJump' && l.is_client && !l.email)
   if (projumpSinEmail.length > 0) tips.push({ level: 'info', text: `${projumpSinEmail.length} comprador${projumpSinEmail.length > 1 ? 'es' : ''} de ProJump sin email — no van a recibir campañas`, href: '/projump' })
