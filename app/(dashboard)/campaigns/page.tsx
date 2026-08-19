@@ -33,20 +33,27 @@ export default function CampaignsPage() {
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ sent: number; failed: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [previewError, setPreviewError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const fetchPreview = useCallback(async () => {
     setLoadingPreview(true)
-    const params = new URLSearchParams()
-    if (form.filter_project) params.set('alpha_project', form.filter_project)
-    if (form.filter_temperature) params.set('temperature', form.filter_temperature)
-    if (form.filter_is_client) params.set('is_client', form.filter_is_client)
-    params.set('all', '1')
-    const res = await fetch(`/api/campaigns?${params}`)
-    const data = await res.json()
-    setPreview(data)
-    setLoadingPreview(false)
+    setPreviewError(null)
+    try {
+      const params = new URLSearchParams()
+      if (form.filter_project) params.set('alpha_project', form.filter_project)
+      if (form.filter_temperature) params.set('temperature', form.filter_temperature)
+      if (form.filter_is_client) params.set('is_client', form.filter_is_client)
+      const res = await fetch(`/api/campaigns?${params}`)
+      if (!res.ok) { setPreviewError(`Error ${res.status}`); return }
+      const data = await res.json()
+      setPreview(data)
+    } catch {
+      setPreviewError('No se pudo cargar la lista')
+    } finally {
+      setLoadingPreview(false)
+    }
   }, [form.filter_project, form.filter_temperature, form.filter_is_client])
 
   useEffect(() => { fetchPreview() }, [fetchPreview])
@@ -185,12 +192,11 @@ export default function CampaignsPage() {
           <div className="bg-[#111111] border border-[#242424] rounded-xl p-4 space-y-3">
             <div className="flex items-center justify-between">
               <p className="text-xs text-[#71717a] font-medium uppercase tracking-wide">Adjuntos</p>
-              <button onClick={() => fileRef.current?.click()}
-                className="flex items-center gap-1.5 text-xs text-[#3B82F6] hover:text-[#60a5fa] transition-colors">
+              <label className="flex items-center gap-1.5 text-xs text-[#3B82F6] hover:text-[#60a5fa] transition-colors cursor-pointer">
                 <Paperclip className="w-3.5 h-3.5" /> Agregar PDF
-              </button>
+                <input ref={fileRef} type="file" accept="application/pdf,.pdf" multiple className="hidden" onChange={handleFileChange} />
+              </label>
             </div>
-            <input ref={fileRef} type="file" accept=".pdf" multiple className="hidden" onChange={handleFileChange} />
             {attachments.length === 0 ? (
               <p className="text-xs text-[#3f3f46]">Sin adjuntos</p>
             ) : (
@@ -254,7 +260,9 @@ export default function CampaignsPage() {
             </div>
           </div>
           <div className="overflow-y-auto max-h-[520px] divide-y divide-[#1a1a1a]">
-            {!preview || preview.recipients.length === 0 ? (
+            {previewError ? (
+              <div className="px-4 py-8 text-center text-sm text-red-400">{previewError}</div>
+            ) : !preview || preview.recipients.length === 0 ? (
               <div className="px-4 py-8 text-center text-sm text-[#3f3f46]">
                 {loadingPreview ? 'Cargando...' : 'Sin destinatarios para este filtro'}
               </div>
