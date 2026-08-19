@@ -108,7 +108,7 @@ export async function POST(req: NextRequest) {
       await resend.emails.send({
         from,
         to: lead.email as string,
-        reply_to: replyTo || 'nahuelcontent@gmail.com',
+        replyTo: replyTo || 'nahuelcontent@gmail.com',
         subject,
         html: buildHtml(personalizedBody, hasImage),
         ...(allAttachments.length > 0 && { attachments: allAttachments }),
