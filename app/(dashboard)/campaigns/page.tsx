@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Send, Users, CheckCircle2, AlertCircle, Loader2, Megaphone, Paperclip, X, FileText } from 'lucide-react'
+import { Send, Users, CheckCircle2, AlertCircle, Loader2, Megaphone, Paperclip, X, FileText, ImageIcon } from 'lucide-react'
 import { ALPHA_PROJECTS, TEMPERATURES } from '@/lib/constants'
 import { cn } from '@/lib/utils'
 
@@ -30,12 +30,14 @@ export default function CampaignsPage() {
   const [preview, setPreview] = useState<PreviewData | null>(null)
   const [loadingPreview, setLoadingPreview] = useState(false)
   const [attachments, setAttachments] = useState<Attachment[]>([])
+  const [profileImage, setProfileImage] = useState<string | null>(null) // base64 data URL
   const [sending, setSending] = useState(false)
   const [result, setResult] = useState<{ sent: number; failed: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [previewError, setPreviewError] = useState<string | null>(null)
   const [confirm, setConfirm] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
+  const imgRef = useRef<HTMLInputElement>(null)
 
   const fetchPreview = useCallback(async () => {
     setLoadingPreview(true)
@@ -63,6 +65,15 @@ export default function CampaignsPage() {
     setResult(null)
     setError(null)
     setConfirm(false)
+  }
+
+  async function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => setProfileImage(reader.result as string)
+    reader.readAsDataURL(file)
+    if (imgRef.current) imgRef.current.value = ''
   }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -103,6 +114,7 @@ export default function CampaignsPage() {
           replyTo: form.replyTo,
           filter,
           attachments: attachments.map(a => ({ filename: a.name, content: a.base64 })),
+          profileImage,
         }),
       })
       const data = await res.json()
@@ -186,6 +198,30 @@ export default function CampaignsPage() {
                 className={cn(inputClass, 'resize-none font-mono text-xs leading-relaxed')} />
             </Field>
             <p className="text-xs text-[#3f3f46]">Usá <span className="text-[#71717a]">[Nombre]</span> para personalizar con el nombre de cada persona.</p>
+
+            {/* Imagen de perfil */}
+            <div className="border-t border-[#1a1a1a] pt-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-[#71717a]">Foto de perfil en el email</span>
+                <label className="flex items-center gap-1.5 text-xs text-[#3B82F6] hover:text-[#60a5fa] transition-colors cursor-pointer">
+                  <ImageIcon className="w-3.5 h-3.5" />
+                  {profileImage ? 'Cambiar imagen' : 'Subir imagen'}
+                  <input ref={imgRef} type="file" accept="image/jpeg,image/png,image/webp" className="hidden" onChange={handleImageChange} />
+                </label>
+              </div>
+              {profileImage ? (
+                <div className="flex items-center gap-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={profileImage} alt="preview" className="w-14 h-14 rounded-full object-cover border border-[#242424]" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs text-[#a1a1aa]">Aparece arriba del texto en el email</p>
+                    <button onClick={() => setProfileImage(null)} className="text-xs text-red-400 hover:text-red-300 transition-colors mt-1">Quitar imagen</button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-xs text-[#3f3f46]">Sin imagen — se envía solo texto</p>
+              )}
+            </div>
           </div>
 
           {/* Adjuntos */}

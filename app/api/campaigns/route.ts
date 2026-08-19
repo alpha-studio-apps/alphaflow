@@ -36,9 +36,20 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ count: recipients.length, recipients })
 }
 
+function buildHtml(bodyText: string, profileImage?: string): string {
+  const imgBlock = profileImage
+    ? `<div style="text-align:center;margin-bottom:24px"><img src="${profileImage}" alt="foto" style="width:80px;height:80px;border-radius:50%;object-fit:cover;display:inline-block"/></div>`
+    : ''
+  const paragraphs = bodyText
+    .split('\n')
+    .map(l => l.trim() === '' ? '<br/>' : `<p style="margin:0 0 12px">${l}</p>`)
+    .join('')
+  return `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:32px 24px;color:#111111;background:#ffffff">${imgBlock}${paragraphs}</body></html>`
+}
+
 // POST — envío real
 export async function POST(req: NextRequest) {
-  const { subject, body, fromName, replyTo, filter, attachments } = await req.json()
+  const { subject, body, fromName, replyTo, filter, attachments, profileImage } = await req.json()
 
   if (!subject || !body) {
     return NextResponse.json({ error: 'Faltan subject o body.' }, { status: 400 })
@@ -56,10 +67,10 @@ export async function POST(req: NextRequest) {
 
   const from = `${fromName || 'Nahuel'} <noreply@nahuelcontent.com>`
 
-  // Preparar adjuntos (base64 → Buffer)
+  // Preparar adjuntos — base64 string directo (batch no serializa Buffer)
   const resendAttachments = (attachments ?? []).map((a: { filename: string; content: string }) => ({
     filename: a.filename,
-    content: Buffer.from(a.content, 'base64'),
+    content: a.content,
   }))
 
   const results = { sent: 0, failed: 0, errors: [] as string[] }
@@ -78,7 +89,7 @@ export async function POST(req: NextRequest) {
         to: lead.email as string,
         reply_to: replyTo || 'nahuelcontent@gmail.com',
         subject,
-        text: personalizedBody,
+        html: buildHtml(personalizedBody, profileImage),
         ...(resendAttachments.length > 0 && { attachments: resendAttachments }),
       }
     })
